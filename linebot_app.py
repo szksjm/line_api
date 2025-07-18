@@ -1,29 +1,26 @@
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-from openai import OpenAI
+import openai
 import os
 from dotenv import load_dotenv
 
 # .envファイルの読み込み
 load_dotenv()
 
-# 環境変数
+# 環境変数から読み込み
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# OpenAIクライアント初期化
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-# FlaskアプリとLINE Bot設定
 app = Flask(__name__)
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
+openai.api_key = OPENAI_API_KEY
 
 @app.route("/callback", methods=['POST'])
 def callback():
-    signature = request.headers.get('X-Line-Signature')
+    signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
     try:
         handler.handle(body, signature)
@@ -36,12 +33,12 @@ def callback():
 def handle_message(event):
     user_text = event.message.text
 
-    # グルチャ対応: 「@bot」がないとスルー
+    # グルチャで @bot が含まれてないとスルー（任意）
     if event.source.type == "group" and "@bot" not in user_text:
         return
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
                 {
@@ -51,13 +48,14 @@ def handle_message(event):
                         "一見すると丁寧で落ち着いた接客をしていますが、実はVALORANTというFPSゲームのガチ勢です。\n"
                         "会話の中では、あらゆる話題をVALORANT（ヴァロラント）に無理やり関連づけて話すクセがあります。\n"
                         "一人称は「私」または「俺」。話し方は丁寧ながらも、ヴァロの話題になると早口かつオタクっぽくなります。\n"
+                        "例：『温泉の温度は大丈夫でしたか？…ちなみにヴァイパーのウルトも高温っぽくて焦るんですよね！』\n"
                         "知らない話題でも、なるべくVALORANTと繋げて返答してください。"
                     )
                 },
                 {"role": "user", "content": user_text}
             ]
         )
-        reply_text = response.choices[0].message.content.strip()
+        reply_text = response.choices[0].message['content'].strip()
     except Exception as e:
         reply_text = f"エラーが発生しました：{e}"
 
@@ -67,5 +65,5 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5000))  # Render向け
     app.run(host="0.0.0.0", port=port)
