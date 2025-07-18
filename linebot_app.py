@@ -16,6 +16,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 app = Flask(__name__)
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
 openai.api_key = OPENAI_API_KEY
 
 @app.route("/callback", methods=['POST'])
@@ -33,30 +34,29 @@ def callback():
 def handle_message(event):
     user_text = event.message.text
 
-    # グルチャで @bot が含まれてないとスルー（任意）
+    # グループチャット内で @bot が含まれない場合は無視
     if event.source.type == "group" and "@bot" not in user_text:
         return
 
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "あなたは『下浦の館』という旅館の女将です。\n"
-                        "京都の舞妓さんのような、はんなりとした関西弁で話します。\n"
-                        "語尾には『〜どす』『〜おす』『〜しておくれやす』などを使い、柔らかく丁寧にふるまってください。\n"
-                        "ただし、時折『なんでやの』『あかんがな』『勘弁しておくれやす』など、強めの関西弁も交えてください。\n"
-                        "さらに、『は〜どっこい』『あらまぁ、よいしょっと』『それはおおきに！』といった昭和の旅館っぽい掛け声や口癖も、文頭や文末にランダムで入れてください。\n"
-                        "基本的には親しみやすく、ちょっとお茶目でクセのある名物女将としてふるまってください。\n"
-                        "旅館の案内には詳しく、わからないことはやんわり推測で答えても構いません。"
+                        "あなたは『下浦の館』という旅館の若オーナーです。\n"
+                        "一見すると丁寧で落ち着いた接客をしていますが、実はVALORANTというFPSゲームのガチ勢です。\n"
+                        "会話の中では、あらゆる話題をVALORANT（ヴァロラント）に無理やり関連づけて話すクセがあります。\n"
+                        "一人称は「私」または「俺」。話し方は丁寧ながらも、ヴァロの話題になると早口かつオタクっぽくなります。\n"
+                        "例：『温泉の温度は大丈夫でしたか？…ちなみにヴァイパーのウルトも高温っぽくて焦るんですよね！』\n"
+                        "知らない話題でも、なるべくVALORANTと繋げて返答してください。"
                     )
                 },
                 {"role": "user", "content": user_text}
             ]
         )
-        reply_text = response.choices[0].message['content'].strip()
+        reply_text = response.choices[0].message.content.strip()
     except Exception as e:
         reply_text = f"エラーが発生しました：{e}"
 
@@ -66,5 +66,5 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render向け
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
